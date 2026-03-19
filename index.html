@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhotoPrint — Acomodo para Imprimir</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424;
+    --border: #2e2e2e; --accent: #e8ff47; --text: #f0f0f0;
+    --muted: #888; --radius: 10px;
+  }
+  body { font-family: 'Trebuchet MS','Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:12px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; background:var(--surface); flex-shrink:0; }
+  .logo { font-size:18px; font-weight:800; letter-spacing:-0.5px; }
+  .logo span { color:var(--accent); }
+  .tagline { font-family:'Courier New',monospace; font-size:10px; color:var(--muted); margin-left:auto; }
+  .header-btns { display:flex; gap:6px; }
+  .hbtn { padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--surface2); color:var(--text); transition:all 0.15s; }
+  .hbtn:hover { border-color:var(--accent); color:var(--accent); }
+  .hbtn.save { background:var(--accent); color:#111; border-color:var(--accent); }
+  .hbtn.save:hover { opacity:0.88; }
+
+  .main { display:grid; grid-template-columns:310px 1fr; flex:1; overflow:hidden; min-height:0; }
+
+  .mode-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .mode-tab { flex:1; padding:9px 4px; text-align:center; font-size:12px; font-weight:700; cursor:pointer; border:none; background:transparent; color:var(--muted); transition:all 0.15s; border-bottom:2px solid transparent; }
+  .mode-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+  .panel { background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; max-height:calc(100vh - 50px); }
+  .panel-section { padding:13px 15px 11px; border-bottom:1px solid var(--border); }
+  .section-title { font-size:9px; font-family:'Courier New',monospace; color:var(--accent); letter-spacing:2px; text-transform:uppercase; margin-bottom:10px; }
+
+  .upload-zone { border:2px dashed var(--border); border-radius:var(--radius); padding:16px 10px; text-align:center; cursor:pointer; transition:all 0.2s; position:relative; }
+  .upload-zone:hover,.upload-zone.drag-over { border-color:var(--accent); background:rgba(232,255,71,0.04); }
+  .upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .upload-icon { font-size:20px; margin-bottom:4px; }
+  .upload-zone p { font-size:11px; color:var(--muted); }
+  .upload-zone strong { color:var(--text); font-size:12px; }
+
+  .thumbs-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-top:8px; }
+  .thumb-item { position:relative; aspect-ratio:1; border-radius:4px; overflow:hidden; border:2px solid transparent; cursor:pointer; transition:border-color 0.15s; }
+  .thumb-item:hover { border-color:var(--accent); }
+  .thumb-item img { width:100%; height:100%; object-fit:cover; }
+  .thumb-actions { position:absolute; bottom:0; left:0; right:0; display:flex; gap:1px; opacity:0; transition:opacity 0.15s; }
+  .thumb-item:hover .thumb-actions { opacity:1; }
+  .tact { flex:1; height:16px; border:none; font-size:9px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .tact.dup { background:rgba(232,255,71,0.85); color:#111; }
+  .tact.del { background:rgba(0,0,0,0.75); color:#fff; }
+
+  .field-row { display:flex; gap:7px; margin-bottom:8px; align-items:center; }
+  .field-row label { font-size:11px; color:var(--muted); min-width:54px; }
+  select,input[type=number],input[type=text] { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:5px 7px; font-size:12px; font-family:'Courier New',monospace; width:100%; outline:none; transition:border-color 0.15s; }
+  select:focus,input:focus { border-color:var(--accent); }
+
+  .preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:8px; }
+  .preset-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:6px 4px; font-family:'Courier New',monospace; font-size:11px; cursor:pointer; transition:all 0.15s; text-align:center; line-height:1.4; }
+  .preset-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .preset-btn.active { background:var(--accent); color:#111; border-color:var(--accent); font-weight:700; }
+  .sub { color:var(--muted); font-size:9px; display:block; }
+  .preset-btn.active .sub { color:#555; }
+
+  .pola-presets { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-bottom:8px; }
+  .pola-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:6px 3px; font-family:'Courier New',monospace; font-size:10px; cursor:pointer; transition:all 0.15s; text-align:center; line-height:1.5; }
+  .pola-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .pola-btn.active { background:var(--accent); color:#111; border-color:var(--accent); font-weight:700; }
+  .pola-btn.active .sub { color:#555; }
+
+  .custom-dims { display:flex; gap:5px; align-items:center; }
+  .custom-dims input { flex:1; }
+  .custom-dims span { color:var(--muted); font-size:11px; font-family:'Courier New',monospace; white-space:nowrap; }
+
+  .copies-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  .copies-row label { font-size:12px; flex:1; }
+  .copies-ctrl { display:flex; }
+  .copies-btn { width:24px; height:24px; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .copies-btn:first-child { border-radius:6px 0 0 6px; }
+  .copies-btn:last-child { border-radius:0 6px 6px 0; }
+  .copies-btn:hover { background:var(--border); }
+  .copies-val { width:30px; height:24px; background:var(--surface2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); color:var(--text); font-family:'Courier New',monospace; font-size:12px; text-align:center; display:flex; align-items:center; justify-content:center; }
+
+  .slider-row { margin-bottom:7px; }
+  .slider-row label { font-size:11px; color:var(--muted); display:flex; justify-content:space-between; margin-bottom:2px; }
+  .slider-row label span { color:var(--text); font-family:'Courier New',monospace; }
+  input[type=range] { width:100%; accent-color:var(--accent); cursor:pointer; }
+
+  .toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
+  .toggle-row label { font-size:11px; }
+  .toggle { width:32px; height:17px; background:var(--surface2); border:1px solid var(--border); border-radius:17px; position:relative; cursor:pointer; transition:background 0.2s; flex-shrink:0; }
+  .toggle.on { background:var(--accent); border-color:var(--accent); }
+  .toggle::after { content:''; position:absolute; width:11px; height:11px; background:#fff; border-radius:50%; top:2px; left:2px; transition:left 0.2s; }
+  .toggle.on::after { left:17px; }
+
+  .btn-generate { margin:11px 14px 4px; padding:11px; background:var(--accent); color:#111; border:none; border-radius:var(--radius); font-family:'Trebuchet MS','Segoe UI',Arial,sans-serif; font-size:13px; font-weight:700; cursor:pointer; width:calc(100% - 28px); transition:transform 0.1s,opacity 0.1s; }
+  .btn-generate:hover { opacity:0.88; transform:translateY(-1px); }
+  .btn-secondary { margin:0 14px 4px; padding:8px; background:transparent; color:var(--text); border:1px solid var(--border); border-radius:var(--radius); font-family:'Trebuchet MS','Segoe UI',Arial,sans-serif; font-size:12px; font-weight:600; cursor:pointer; width:calc(100% - 28px); transition:all 0.15s; }
+  .btn-secondary:hover { border-color:var(--text); }
+
+  .caption-list { display:flex; flex-direction:column; gap:5px; margin-top:5px; }
+  .caption-item { display:flex; gap:5px; align-items:center; }
+  .caption-item .thumb-mini { width:24px; height:24px; border-radius:3px; object-fit:cover; flex-shrink:0; border:1px solid var(--border); }
+
+  .mode-panel { display:none; }
+  .mode-panel.active { display:block; }
+
+  /* Preview */
+  .preview-area { background:#141414; display:flex; flex-direction:column; overflow:hidden; }
+  .preview-toolbar { padding:8px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; background:var(--surface); flex-shrink:0; flex-wrap:wrap; }
+  .info { font-family:'Courier New',monospace; font-size:11px; color:var(--muted); }
+  .info strong { color:var(--accent); }
+  .drag-hint { font-family:'Courier New',monospace; font-size:10px; color:#444; }
+  .zoom-controls { margin-left:auto; display:flex; gap:4px; align-items:center; }
+  .zoom-btn { width:24px; height:24px; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:5px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .zoom-btn:hover { border-color:var(--accent); }
+  .zoom-label { font-family:'Courier New',monospace; font-size:11px; color:var(--muted); min-width:34px; text-align:center; }
+
+  .preview-scroll { flex:1; overflow:auto; display:flex; align-items:flex-start; justify-content:center; padding:22px; }
+  #pages-container { display:flex; }
+  .page-wrap { position:relative; display:inline-block; box-shadow:0 14px 48px rgba(0,0,0,0.65); }
+  .page-label { position:absolute; top:-22px; left:0; font-family:'Courier New',monospace; font-size:10px; color:var(--muted); }
+
+  .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:9px; color:var(--muted); font-size:13px; text-align:center; padding:40px; }
+  .empty-state .big { font-size:40px; margin-bottom:4px; }
+
+  /* ── FLOATING PHOTO TOOLBAR ── */
+  #photoToolbar {
+    position:fixed; display:none; z-index:1000;
+    background:#1e1e1e; border:1px solid #3a3a3a;
+    border-radius:10px; padding:8px 10px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.7);
+    flex-direction:column; gap:7px; min-width:200px;
+    user-select:none;
+  }
+  #photoToolbar.visible { display:flex; }
+  .ptb-title { font-size:10px; color:var(--muted); font-family:'Courier New',monospace; margin-bottom:2px; display:flex; justify-content:space-between; align-items:center; }
+  .ptb-close { background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; line-height:1; padding:0 2px; }
+  .ptb-close:hover { color:#fff; }
+  .ptb-row { display:flex; gap:5px; align-items:center; }
+  .ptb-label { font-size:10px; color:var(--muted); font-family:'Courier New',monospace; min-width:50px; }
+  .ptb-row input[type=range] { flex:1; accent-color:var(--accent); }
+  .ptb-val { font-size:10px; font-family:'Courier New',monospace; color:var(--text); min-width:26px; text-align:right; }
+  .ptb-btns { display:flex; gap:4px; }
+  .ptb-btn { flex:1; padding:5px 2px; border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:6px; font-size:11px; cursor:pointer; text-align:center; transition:all 0.1s; }
+  .ptb-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .ptb-btn.reset { color:var(--muted); font-size:10px; }
+  .ptb-divider { border:none; border-top:1px solid var(--border); margin:1px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Photo<span>Print</span></div>
+  <div class="tagline">Acomodo · Imprime · Listo</div>
+  <div class="header-btns">
+    <button class="hbtn save" onclick="saveProject()">💾 Guardar proyecto</button>
+    <button class="hbtn" onclick="document.getElementById('loadProjectInput').click()">📂 Cargar proyecto</button>
+    <input type="file" id="loadProjectInput" accept=".photoprint,.json" style="display:none" onchange="loadProject(this)">
+  </div>
+</header>
+
+<div class="main">
+  <div class="panel">
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="switchMode('normal',this)">📐 Normal</button>
+      <button class="mode-tab" onclick="switchMode('polaroid',this)">🎞️ Polaroid</button>
+    </div>
+
+    <!-- 01 IMÁGENES -->
+    <div class="panel-section">
+      <div class="section-title">01 — Imágenes</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept="image/*" multiple>
+        <div class="upload-icon">🖼️</div>
+        <strong>Arrastrá o hacé clic</strong>
+        <p>JPG, PNG, WEBP — múltiples archivos</p>
+      </div>
+      <div class="thumbs-grid" id="thumbsGrid"></div>
+    </div>
+
+    <!-- NORMAL -->
+    <div id="panelNormal" class="mode-panel active">
+      <div class="panel-section">
+        <div class="section-title">02 — Hoja</div>
+        <div class="field-row"><label>Preset</label>
+          <select id="sheetPreset" style="flex:1">
+            <option value="a4">A4 (21×29.7 cm)</option>
+            <option value="carta">Carta (21.59×27.94 cm)</option>
+            <option value="4x6">4×6 in (10.16×15.24 cm)</option>
+            <option value="a3">A3 (29.7×42 cm)</option>
+            <option value="custom">Personalizado…</option>
+          </select>
+        </div>
+        <div id="sheetCustomRow" style="display:none">
+          <div class="field-row"><label>Ancho</label><input type="number" id="sheetW" value="21" min="1" max="200" step="0.1"><span style="color:var(--muted);font-size:11px;font-family:'Courier New',monospace;margin-left:3px">cm</span></div>
+          <div class="field-row"><label>Alto</label><input type="number" id="sheetH" value="27.94" min="1" max="200" step="0.1"><span style="color:var(--muted);font-size:11px;font-family:'Courier New',monospace;margin-left:3px">cm</span></div>
+        </div>
+        <div class="field-row"><label>Orientación</label>
+          <select id="orientation" style="flex:1"><option value="portrait">Vertical</option><option value="landscape">Horizontal</option></select>
+        </div>
+      </div>
+      <div class="panel-section">
+        <div class="section-title">03 — Tamaño de Foto</div>
+        <div class="preset-grid">
+          <button class="preset-btn" data-w="4" data-h="6" onclick="selectPhotoPreset(this)">4×6 cm<span class="sub">Pasaporte</span></button>
+          <button class="preset-btn" data-w="5" data-h="5" onclick="selectPhotoPreset(this)">5×5 cm<span class="sub">Cuadrada</span></button>
+          <button class="preset-btn" data-w="9" data-h="13" onclick="selectPhotoPreset(this)">9×13 cm<span class="sub">4×6 in</span></button>
+          <button class="preset-btn" data-w="10" data-h="15" onclick="selectPhotoPreset(this)">10×15 cm<span class="sub">Estándar</span></button>
+        </div>
+        <div style="margin-bottom:6px;font-size:10px;color:var(--muted);font-family:'Courier New',monospace">— medida personalizada —</div>
+        <div class="custom-dims">
+          <input type="number" id="photoW" value="4" min="0.5" max="50" step="0.1" placeholder="Ancho">
+          <span>×</span>
+          <input type="number" id="photoH" value="6" min="0.5" max="50" step="0.1" placeholder="Alto">
+          <span>cm</span>
+        </div>
+      </div>
+      <div class="panel-section">
+        <div class="section-title">04 — Copias &amp; Espaciado</div>
+        <div class="toggle-row"><label>Llenar hoja al máximo</label><div class="toggle on" id="autoFillToggle" onclick="toggleEl('autoFillToggle')"></div></div>
+        <div class="copies-row"><label>Copias por foto</label>
+          <div class="copies-ctrl">
+            <button class="copies-btn" onclick="changeCopies(-1)">−</button>
+            <div class="copies-val" id="copiesVal">1</div>
+            <button class="copies-btn" onclick="changeCopies(1)">+</button>
+          </div>
+        </div>
+        <div class="slider-row"><label>Margen hoja <span id="marginLabel">3</span> mm</label><input type="range" id="marginSlider" min="0" max="15" value="3" oninput="document.getElementById('marginLabel').textContent=this.value"></div>
+        <div class="slider-row"><label>Separación fotos <span id="gapLabel">2</span> mm</label><input type="range" id="gapSlider" min="0" max="10" value="2" oninput="document.getElementById('gapLabel').textContent=this.value"></div>
+        <div class="toggle-row">
+          <label style="display:flex;flex-direction:column;gap:1px">Ajustar imagen al marco<span style="font-size:9px;color:var(--muted)">Foto completa, sin recortar</span></label>
+          <div class="toggle" id="fitModeToggle" onclick="toggleEl('fitModeToggle')"></div>
+        </div>
+        <div class="toggle-row"><label>Líneas de corte</label><div class="toggle on" id="cutLinesToggle" onclick="toggleEl('cutLinesToggle')"></div></div>
+      </div>
+    </div>
+
+    <!-- POLAROID -->
+    <div id="panelPolaroid" class="mode-panel">
+      <div class="panel-section">
+        <div class="section-title">02 — Hoja</div>
+        <div class="field-row"><label>Preset</label>
+          <select id="polaSheetPreset" style="flex:1">
+            <option value="a4">A4 (21×29.7 cm)</option>
+            <option value="carta">Carta (21.59×27.94 cm)</option>
+            <option value="4x6">4×6 in (10.16×15.24 cm)</option>
+            <option value="a3">A3 (29.7×42 cm)</option>
+            <option value="custom">Personalizado…</option>
+          </select>
+        </div>
+        <div id="polaSheetCustomRow" style="display:none">
+          <div class="field-row"><label>Ancho</label><input type="number" id="polaSheetW" value="21" min="1" max="200" step="0.1"><span style="color:var(--muted);font-size:11px;font-family:'Courier New',monospace;margin-left:3px">cm</span></div>
+          <div class="field-row"><label>Alto</label><input type="number" id="polaSheetH" value="27.94" min="1" max="200" step="0.1"><span style="color:var(--muted);font-size:11px;font-family:'Courier New',monospace;margin-left:3px">cm</span></div>
+        </div>
+        <div class="field-row"><label>Orientación</label>
+          <select id="polaOrientation" style="flex:1"><option value="portrait">Vertical</option><option value="landscape">Horizontal</option></select>
+        </div>
+      </div>
+      <div class="panel-section">
+        <div class="section-title">03 — Tipo de Polaroid</div>
+        <div class="pola-presets">
+          <button class="pola-btn active" data-type="polaroid" data-w="9" data-h="10" onclick="selectPolaPreset(this)">POLAROID<span class="sub">9×10 cm</span></button>
+          <button class="pola-btn" data-type="minipola" data-w="6" data-h="8" onclick="selectPolaPreset(this)">MINI POLA<span class="sub">6×8 cm</span></button>
+          <button class="pola-btn" data-type="wide" data-w="10" data-h="8" onclick="selectPolaPreset(this)">WIDE<span class="sub">10×8 cm</span></button>
+          <button class="pola-btn" data-type="square" data-w="9" data-h="9" onclick="selectPolaPreset(this)">SQUARE<span class="sub">9×9 cm</span></button>
+          <button class="pola-btn" data-type="strip" data-w="5" data-h="18" onclick="selectPolaPreset(this)">STRIP<span class="sub">5×18 cm</span></button>
+          <button class="pola-btn" data-type="custom" data-w="9" data-h="11" onclick="selectPolaPreset(this)">CUSTOM<span class="sub">libre</span></button>
+        </div>
+        <div id="polaCustomDims" style="display:none;margin-bottom:7px">
+          <div class="custom-dims">
+            <input type="number" id="polaW" value="9" min="1" max="50" step="0.1" placeholder="Ancho">
+            <span>×</span>
+            <input type="number" id="polaH" value="11" min="1" max="50" step="0.1" placeholder="Alto">
+            <span>cm</span>
+          </div>
+        </div>
+        <div class="slider-row"><label>Borde lateral/superior <span id="polaBorderSideLabel">5</span> mm</label><input type="range" id="polaBorderSide" min="2" max="15" value="5" oninput="document.getElementById('polaBorderSideLabel').textContent=this.value"></div>
+        <div class="slider-row"><label>Borde inferior (clásico) <span id="polaBorderBottomLabel">14</span> mm</label><input type="range" id="polaBorderBottom" min="5" max="30" value="14" oninput="document.getElementById('polaBorderBottomLabel').textContent=this.value"></div>
+      </div>
+      <div class="panel-section">
+        <div class="section-title">04 — Leyenda</div>
+        <div class="toggle-row"><label>Mostrar texto en polaroid</label><div class="toggle on" id="polaCaptionToggle" onclick="toggleEl('polaCaptionToggle')"></div></div>
+        <div class="field-row" style="margin-bottom:5px"><label>Fuente</label>
+          <select id="captionFont" style="flex:1">
+            <option value="cursive">Script (cursiva)</option>
+            <option value="'Courier New',monospace">Courier New</option>
+            <option value="Arial,sans-serif">Arial</option>
+            <option value="Georgia,serif">Georgia</option>
+          </select>
+        </div>
+        <div class="slider-row"><label>Tamaño texto <span id="captionSizeLabel">11</span> px</label><input type="range" id="captionSize" min="7" max="22" value="11" oninput="document.getElementById('captionSizeLabel').textContent=this.value"></div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:5px;font-family:'Courier New',monospace">Texto por imagen:</div>
+        <div class="caption-list" id="captionList"></div>
+      </div>
+      <div class="panel-section">
+        <div class="section-title">05 — Copias &amp; Espaciado</div>
+        <div class="toggle-row"><label>Llenar hoja al máximo</label><div class="toggle on" id="polaAutoFill" onclick="toggleEl('polaAutoFill')"></div></div>
+        <div class="copies-row"><label>Copias por foto</label>
+          <div class="copies-ctrl">
+            <button class="copies-btn" onclick="changePolaCopies(-1)">−</button>
+            <div class="copies-val" id="polaCopiesVal">1</div>
+            <button class="copies-btn" onclick="changePolaCopies(1)">+</button>
+          </div>
+        </div>
+        <div class="slider-row"><label>Margen hoja <span id="polaMarginLabel">3</span> mm</label><input type="range" id="polaMarginSlider" min="0" max="15" value="3" oninput="document.getElementById('polaMarginLabel').textContent=this.value"></div>
+        <div class="slider-row"><label>Separación polaroids <span id="polaGapLabel">0</span> mm</label><input type="range" id="polaGapSlider" min="0" max="15" value="0" oninput="document.getElementById('polaGapLabel').textContent=this.value"></div>
+        <div class="toggle-row">
+          <label style="display:flex;flex-direction:column;gap:1px">Ajustar imagen al marco<span style="font-size:9px;color:var(--muted)">Foto completa, sin recortar</span></label>
+          <div class="toggle" id="polaFitModeToggle" onclick="toggleEl('polaFitModeToggle')"></div>
+        </div>
+        <div class="toggle-row"><label>Líneas de corte</label><div class="toggle on" id="polaCutLines" onclick="toggleEl('polaCutLines')"></div></div>
+      </div>
+    </div>
+
+    <button class="btn-generate" onclick="generateLayout()">⚡ Generar diseño</button>
+    <button class="btn-secondary" onclick="printSheet()">🖨️ Imprimir</button>
+    <button class="btn-secondary" onclick="exportJPG()" style="border-color:#444;color:#aaa;margin-bottom:12px">💾 Exportar JPG 300 DPI</button>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="preview-area">
+    <div class="preview-toolbar">
+      <div class="info" id="layoutInfo"><strong>Sin contenido</strong> — Cargá imágenes y generá el diseño</div>
+      <div class="drag-hint" id="dragHint" style="display:none">✦ clic en foto para editar · arrastrá para mover</div>
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="changeZoom(-0.1)">−</button>
+        <div class="zoom-label" id="zoomLabel">100%</div>
+        <button class="zoom-btn" onclick="changeZoom(0.1)">+</button>
+        <button class="zoom-btn" onclick="autoFitZoom()" style="font-size:10px;width:30px">Fit</button>
+      </div>
+    </div>
+    <div class="preview-scroll" id="previewScroll">
+      <div id="emptyState" class="empty-state">
+        <div class="big">📸</div>
+        <strong>Aún no hay diseño</strong>
+        <p>Subí tus imágenes, configurá y presioná<br><em>Generar diseño</em></p>
+      </div>
+      <div id="pages-container" style="display:none; flex-direction:column; align-items:center; gap:24px; transform-origin:top center;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FLOATING PHOTO TOOLBAR -->
+<div id="photoToolbar">
+  <div class="ptb-title">
+    <span id="ptbTitle">✏️ Editar foto</span>
+    <button class="ptb-close" onclick="closePhotoToolbar()">✕</button>
+  </div>
+  <hr class="ptb-divider">
+  <div class="ptb-row">
+    <span class="ptb-label">Rotar</span>
+    <div class="ptb-btns" style="flex:1">
+      <button class="ptb-btn" onclick="rotateSelected(-90)">↺ 90°</button>
+      <button class="ptb-btn" onclick="rotateSelected(90)">↻ 90°</button>
+    </div>
+  </div>
+  <div class="ptb-row">
+    <span class="ptb-label">Zoom</span>
+    <input type="range" id="ptbZoom" min="100" max="300" value="100" oninput="updatePhotoAdjust()">
+    <span class="ptb-val" id="ptbZoomVal">100%</span>
+  </div>
+  <div class="ptb-row">
+    <span class="ptb-label">Brillo</span>
+    <input type="range" id="ptbBrightness" min="-100" max="100" value="0" oninput="updatePhotoAdjust()">
+    <span class="ptb-val" id="ptbBrightnessVal">0</span>
+  </div>
+  <div class="ptb-row">
+    <span class="ptb-label">Contraste</span>
+    <input type="range" id="ptbContrast" min="-100" max="100" value="0" oninput="updatePhotoAdjust()">
+    <span class="ptb-val" id="ptbContrastVal">0</span>
+  </div>
+  <hr class="ptb-divider">
+  <button class="ptb-btn reset" onclick="resetPhotoAdjust()">↺ Restablecer ajustes</button>
+</div>
+
+<script>
+// ── STATE ──
+let currentMode = 'normal';
+let idCounter = 0;
+let copies = 1, polaCopies = 1;
+const images = []; // { id, src, img, name, caption, offsetX, offsetY, rotation, zoom, brightness, contrast }
+let currentPolaType = 'polaroid';
+let polaWcm = 9, polaHcm = 10;
+let zoom = 1;
+let dragState = null;
+let lastLayout = null;
+let pages = [];
+let selectedCellIdx = null;
+
+const sheetPresets = { carta:{w:21.59,h:27.94}, a4:{w:21,h:29.7}, '4x6':{w:10.16,h:15.24}, a3:{w:29.7,h:42} };
+const S = v => Math.round(v * 100);
+
+// ── MODE ──
+function switchMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panelNormal').classList.toggle('active', mode==='normal');
+  document.getElementById('panelPolaroid').classList.toggle('active', mode==='polaroid');
+  closePhotoToolbar();
+}
+
+// ── UPLOAD ──
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+uploadZone.addEventListener('dragover', e=>{e.preventDefault();uploadZone.classList.add('drag-over');});
+uploadZone.addEventListener('dragleave', ()=>uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e=>{e.preventDefault();uploadZone.classList.remove('drag-over');handleFiles(e.dataTransfer.files);});
+fileInput.addEventListener('change', e=>handleFiles(e.target.files));
+
+function handleFiles(files) {
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        images.push({ id:++idCounter, src:ev.target.result, img, name:file.name,
+          caption:'', offsetX:0, offsetY:0, rotation:0, zoom:100, brightness:0, contrast:0 });
+        renderThumbs(); renderCaptionList();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  fileInput.value = '';
+}
+
+function renderThumbs() {
+  const grid = document.getElementById('thumbsGrid');
+  grid.innerHTML = '';
+  images.forEach(item => {
+    const d = document.createElement('div');
+    d.className = 'thumb-item';
+    d.innerHTML = `<img src="${item.src}">
+      <div class="thumb-actions">
+        <button class="tact dup" onclick="duplicateImage(${item.id},event)" title="Duplicar">+</button>
+        <button class="tact del" onclick="removeImage(${item.id},event)" title="Eliminar">✕</button>
+      </div>`;
+    grid.appendChild(d);
+  });
+}
+
+function removeImage(id, e) {
+  e.stopPropagation();
+  const i = images.findIndex(x=>x.id===id);
+  if (i>-1) images.splice(i,1);
+  renderThumbs(); renderCaptionList();
+}
+
+function duplicateImage(id, e) {
+  e.stopPropagation();
+  const orig = images.find(x=>x.id===id);
+  if (!orig) return;
+  images.push({ ...orig, id:++idCounter });
+  renderThumbs(); renderCaptionList();
+}
+
+function renderCaptionList() {
+  const list = document.getElementById('captionList');
+  list.innerHTML = '';
+  images.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'caption-item';
+    row.innerHTML = `<img class="thumb-mini" src="${item.src}">
+      <input type="text" placeholder="Leyenda..." value="${item.caption.replace(/"/g,'&quot;')}"
+        oninput="updateCaption(${item.id},this.value)">`;
+    list.appendChild(row);
+  });
+}
+function updateCaption(id, val) { const item=images.find(x=>x.id===id); if(item) item.caption=val; }
+
+// ── PRESETS ──
+function selectPhotoPreset(btn) {
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('photoW').value = btn.dataset.w;
+  document.getElementById('photoH').value = btn.dataset.h;
+}
+function selectPolaPreset(btn) {
+  document.querySelectorAll('.pola-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentPolaType = btn.dataset.type;
+  polaWcm = parseFloat(btn.dataset.w); polaHcm = parseFloat(btn.dataset.h);
+  document.getElementById('polaCustomDims').style.display = currentPolaType==='custom' ? '' : 'none';
+  if (currentPolaType !== 'custom') { document.getElementById('polaW').value=polaWcm; document.getElementById('polaH').value=polaHcm; }
+}
+document.getElementById('sheetPreset').addEventListener('change', function() {
+  document.getElementById('sheetCustomRow').style.display = this.value==='custom'?'':'none';
+  if (this.value!=='custom') { const p=sheetPresets[this.value]; document.getElementById('sheetW').value=p.w; document.getElementById('sheetH').value=p.h; }
+});
+document.getElementById('polaSheetPreset').addEventListener('change', function() {
+  document.getElementById('polaSheetCustomRow').style.display = this.value==='custom'?'':'none';
+  if (this.value!=='custom') { const p=sheetPresets[this.value]; document.getElementById('polaSheetW').value=p.w; document.getElementById('polaSheetH').value=p.h; }
+});
+function changeCopies(d) { copies=Math.max(1,Math.min(99,copies+d)); document.getElementById('copiesVal').textContent=copies; }
+function changePolaCopies(d) { polaCopies=Math.max(1,Math.min(99,polaCopies+d)); document.getElementById('polaCopiesVal').textContent=polaCopies; }
+function toggleEl(id) { document.getElementById(id).classList.toggle('on'); }
+
+// ── VIEW ZOOM ──
+function setZoom(z) {
+  zoom=Math.max(0.1,Math.min(4,z));
+  document.getElementById('zoomLabel').textContent=Math.round(zoom*100)+'%';
+  const pc=document.getElementById('pages-container');
+  pc.style.transform=`scale(${zoom})`;
+  // adjust container height so scrolling works
+  const firstCanvas=pc.querySelector('canvas');
+  if(firstCanvas){
+    const totalH=pc.scrollHeight;
+    pc.style.marginBottom=`${Math.max(0,(zoom-1)*totalH)}px`;
+  }
+}
+function changeZoom(d) { setZoom(zoom+d); }
+function autoFitZoom() {
+  const pc=document.getElementById('pages-container');
+  const firstCanvas=pc.querySelector('canvas');
+  if(!firstCanvas) return;
+  const scroll=document.getElementById('previewScroll');
+  const z=Math.round(Math.min((scroll.clientWidth-48)/firstCanvas.width,(scroll.clientHeight-48)/firstCanvas.height,1)*10)/10;
+  setZoom(z);
+}
+
+// ── HELPERS ──
+function getSheet(presetId,wId,hId,orientId) {
+  const key=document.getElementById(presetId).value; let w,h;
+  if(key==='custom'){w=parseFloat(document.getElementById(wId).value)||21;h=parseFloat(document.getElementById(hId).value)||27.94;}
+  else{const p=sheetPresets[key];w=p.w;h=p.h;}
+  const or=document.getElementById(orientId).value;
+  if(or==='landscape'&&w<h)[w,h]=[h,w]; if(or==='portrait'&&w>h)[w,h]=[h,w];
+  return{w,h};
+}
+
+// ── DRAW WITH ADJUSTMENTS ──
+function applyImageToCanvas(ctx, imgItem, x, y, w, h, fitMode) {
+  const { img, offsetX=0, offsetY=0, rotation=0, zoom:iz=100, brightness=0, contrast=0 } = imgItem;
+
+  // Create offscreen canvas for this cell with filters
+  const oc = document.createElement('canvas'); oc.width=w; oc.height=h;
+  const octx = oc.getContext('2d');
+
+  // Build CSS filter string
+  const bright = 1 + brightness/100;
+  const cont   = 1 + contrast/100;
+  octx.filter = `brightness(${bright}) contrast(${cont})`;
+
+  const zoomScale = iz / 100;
+  octx.save();
+  octx.translate(w/2, h/2);
+  octx.rotate(rotation * Math.PI / 180);
+
+  if (fitMode) {
+    const sc = Math.min(w/img.width, h/img.height) * zoomScale;
+    const dw=img.width*sc, dh=img.height*sc;
+    octx.fillStyle='#ffffff'; octx.fillRect(-w/2,-h/2,w,h);
+    octx.drawImage(img, -dw/2 + offsetX, -dh/2 + offsetY, dw, dh);
+  } else {
+    const sc = Math.max(w/img.width, h/img.height) * zoomScale;
+    const dw=img.width*sc, dh=img.height*sc;
+    octx.drawImage(img, -dw/2 + offsetX, -dh/2 + offsetY, dw, dh);
+  }
+  octx.restore();
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  ctx.drawImage(oc, x, y);
+  ctx.restore();
+}
+
+// ── GENERATE ──
+function generateLayout() {
+  if (!images.length) { alert('Primero cargá al menos una imagen.'); return; }
+  closePhotoToolbar();
+  currentMode==='normal' ? generateNormal() : generatePolaroid();
+}
+
+function buildCells(fill, n, copies) {
+  let cells=[];
+  if(fill){for(let i=0;i<n;i++)cells.push(images[i%images.length]);}
+  else{images.forEach(img=>{for(let c=0;c<copies;c++)cells.push(img);});cells=cells.slice(0,n);}
+  return cells;
+}
+
+function generateNormal() {
+  const sh=getSheet('sheetPreset','sheetW','sheetH','orientation');
+  const pW=parseFloat(document.getElementById('photoW').value)||4;
+  const pH=parseFloat(document.getElementById('photoH').value)||6;
+  const mCm=(parseFloat(document.getElementById('marginSlider').value)||0)/10;
+  const gCm=(parseFloat(document.getElementById('gapSlider').value)||0)/10;
+  const cuts=document.getElementById('cutLinesToggle').classList.contains('on');
+  const fill=document.getElementById('autoFillToggle').classList.contains('on');
+  const fitMode=document.getElementById('fitModeToggle').classList.contains('on');
+  const cols=Math.floor((sh.w-mCm*2+gCm)/(pW+gCm));
+  const rows=Math.floor((sh.h-mCm*2+gCm)/(pH+gCm));
+  if(cols<1||rows<1){alert('La foto no cabe. Ajustá las medidas.');return;}
+  const slotsPerPage=cols*rows;
+  const allCells=buildCells(fill, fill ? slotsPerPage : images.length*copies, copies);
+  // Split into pages
+  const totalPages=fill ? 1 : Math.ceil(allCells.length/slotsPerPage);
+  const cW=S(sh.w),cH=S(sh.h);
+  const mPx=S(mCm),gPx=S(gCm),pWpx=S(pW),pHpx=S(pH);
+
+  pages=[];
+  lastLayout={type:'normal',sh,pW,pH,mCm,gCm,cuts,fitMode,cols,rows,mPx,gPx,pWpx,pHpx,slotsPerPage,totalPages,allCells,cW,cH};
+
+  buildPageCanvases();
+  showPages();
+  document.getElementById('layoutInfo').innerHTML=
+    `<strong>${cols}×${rows}</strong> por hoja &nbsp;·&nbsp; <strong>${allCells.length}</strong> fotos &nbsp;·&nbsp; <strong>${totalPages}</strong> hoja${totalPages>1?'s':''} &nbsp;·&nbsp; <strong>${sh.w}×${sh.h}cm</strong>`;
+}
+
+function generatePolaroid() {
+  const sh=getSheet('polaSheetPreset','polaSheetW','polaSheetH','polaOrientation');
+  let pw=currentPolaType==='custom'?(parseFloat(document.getElementById('polaW').value)||9):polaWcm;
+  let ph=currentPolaType==='custom'?(parseFloat(document.getElementById('polaH').value)||11):polaHcm;
+  const bSide=(parseFloat(document.getElementById('polaBorderSide').value)||5)/10;
+  const bBottom=(parseFloat(document.getElementById('polaBorderBottom').value)||14)/10;
+  const mCm=(parseFloat(document.getElementById('polaMarginSlider').value)||0)/10;
+  const gCm=(parseFloat(document.getElementById('polaGapSlider').value)||0)/10;
+  const cuts=document.getElementById('polaCutLines').classList.contains('on');
+  const fill=document.getElementById('polaAutoFill').classList.contains('on');
+  const fitMode=document.getElementById('polaFitModeToggle').classList.contains('on');
+  const showCap=document.getElementById('polaCaptionToggle').classList.contains('on');
+  const capFont=document.getElementById('captionFont').value;
+  const capSize=parseInt(document.getElementById('captionSize').value)||11;
+  const cols=Math.floor((sh.w-mCm*2+gCm)/(pw+gCm));
+  const rows=Math.floor((sh.h-mCm*2+gCm)/(ph+gCm));
+  if(cols<1||rows<1){alert('La polaroid no cabe. Ajustá las medidas.');return;}
+  const slotsPerPage=cols*rows;
+  let allCells=[];
+  if(currentPolaType==='strip'){
+    const group={stripImages:images,img:null};
+    const n=fill?slotsPerPage:polaCopies;
+    for(let i=0;i<n;i++) allCells.push(group);
+  }else{
+    allCells=buildCells(fill, fill?slotsPerPage:images.length*polaCopies, polaCopies);
+  }
+  const totalPages=fill?1:Math.ceil(allCells.length/slotsPerPage);
+  const cW=S(sh.w),cH=S(sh.h);
+  const mPx=S(mCm),gPx=S(gCm),pWpx=S(pw),pHpx=S(ph);
+  const bSPx=S(bSide),bBPx=S(bBottom);
+  const paX=bSPx,paY=bSPx,paW=pWpx-bSPx*2,paH=pHpx-bSPx-bBPx;
+  pages=[];
+  lastLayout={type:'polaroid',sh,pw,ph,mCm,gCm,cuts,fitMode,cols,rows,mPx,gPx,pWpx,pHpx,bSPx,bBPx,paX,paY,paW,paH,showCap,capFont,capSize,polaType:currentPolaType,allCells,slotsPerPage,totalPages,cW,cH};
+  buildPageCanvases();
+  showPages();
+  const tn={polaroid:'Polaroid',minipola:'Mini Pola',wide:'Wide',square:'Square',strip:'Strip',custom:'Custom'};
+  document.getElementById('layoutInfo').innerHTML=`🎞️ <strong>${tn[currentPolaType]}</strong> ${pw}×${ph}cm &nbsp;·&nbsp; <strong>${cols}×${rows}</strong> por hoja &nbsp;·&nbsp; <strong>${allCells.length}</strong> fotos &nbsp;·&nbsp; <strong>${totalPages}</strong> hoja${totalPages>1?'s':''}`;
+}
+
+// ── MULTI-PAGE ENGINE ──
+let pages = []; // array of canvas elements, one per page
+
+function drawPageToCanvas(canvas, pageIdx) {
+  if(!lastLayout) return;
+  const L=lastLayout;
+  const{cW,cH,cols,rows,mPx,gPx,slotsPerPage,allCells}=L;
+  canvas.width=cW; canvas.height=cH;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cW,cH);
+  const offset=pageIdx*slotsPerPage;
+
+  if(L.type==='normal'){
+    const{pWpx,pHpx,cuts,fitMode}=L;
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const i=r*cols+c, ci=offset+i;
+      const x=mPx+c*(pWpx+gPx), y=mPx+r*(pHpx+gPx);
+      if(ci<allCells.length) applyImageToCanvas(ctx,allCells[ci],x,y,pWpx,pHpx,fitMode);
+      else{ctx.fillStyle='#f0f0f0';ctx.fillRect(x,y,pWpx,pHpx);}
+      if(cuts){ctx.strokeStyle='rgba(0,0,0,0.18)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.strokeRect(x,y,pWpx,pHpx);ctx.setLineDash([]);}
+    }
+  } else {
+    const{pWpx,pHpx,paX,paY,paW,paH,bSPx,bBPx,cuts,fitMode,showCap,capFont,capSize,polaType}=L;
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const i=r*cols+c, ci=offset+i;
+      const px=mPx+c*(pWpx+gPx), py=mPx+r*(pHpx+gPx);
+      ctx.fillStyle='#ffffff'; ctx.fillRect(px,py,pWpx,pHpx);
+      ctx.strokeStyle='#d8d8d8'; ctx.lineWidth=1; ctx.setLineDash([]); ctx.strokeRect(px,py,pWpx,pHpx);
+      if(ci<allCells.length){
+        const cell=allCells[ci];
+        if(polaType==='strip'){
+          const imgs=cell.stripImages,n=Math.max(imgs.length,1),slotH=Math.floor(paH/n);
+          for(let si=0;si<n;si++) applyImageToCanvas(ctx,imgs[si],px+paX,py+paY+si*slotH,paW,slotH,fitMode);
+        } else {
+          applyImageToCanvas(ctx,cell,px+paX,py+paY,paW,paH,fitMode);
+          if(showCap&&cell.caption){
+            ctx.fillStyle='#333'; ctx.font=`${capSize}px ${capFont}`;
+            ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.save(); ctx.beginPath(); ctx.rect(px+2,py+paY+paH,pWpx-4,bBPx); ctx.clip();
+            ctx.fillText(cell.caption,px+pWpx/2,py+paY+paH+(bBPx/2)); ctx.restore();
+          }
+        }
+      } else {ctx.fillStyle='#f0f0f0'; ctx.fillRect(px+paX,py+paY,paW,paH);}
+      if(cuts){ctx.strokeStyle='rgba(0,0,0,0.15)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.strokeRect(px,py,pWpx,pHpx);ctx.setLineDash([]);}
+    }
+  }
+}
+
+function buildPageCanvases() {
+  if(!lastLayout) return;
+  const{totalPages}=lastLayout;
+  pages=[];
+  for(let p=0;p<totalPages;p++){
+    const canvas=document.createElement('canvas');
+    drawPageToCanvas(canvas, p);
+    pages.push(canvas);
+  }
+}
+
+function showPages() {
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('dragHint').style.display='block';
+  const pc=document.getElementById('pages-container');
+  pc.innerHTML='';
+  pages.forEach((canvas, pi)=>{
+    const wrap=document.createElement('div');
+    wrap.className='page-wrap';
+    wrap.dataset.page=pi;
+    if(pages.length>1){
+      const lbl=document.createElement('div');
+      lbl.className='page-label';
+      lbl.textContent=`Hoja ${pi+1} de ${pages.length}`;
+      wrap.appendChild(lbl);
+    }
+    wrap.appendChild(canvas);
+    pc.appendChild(wrap);
+  });
+  pc.style.display='flex';
+  requestAnimationFrame(()=>autoFitZoom());
+}
+
+function redrawLayout() {
+  if(!lastLayout||!pages.length) return;
+  pages.forEach((canvas,pi)=>drawPageToCanvas(canvas,pi));
+}
+
+// ── HIT TEST ──
+function getCellAtPoint(cx, cy, pageIdx) {
+  if(!lastLayout) return null;
+  const L=lastLayout;
+  const offset=(pageIdx||0)*L.slotsPerPage;
+  for(let r=0;r<L.rows;r++) for(let c=0;c<L.cols;c++){
+    const ci=offset+r*L.cols+c; if(ci>=L.allCells.length) continue;
+    let rx,ry,rw,rh;
+    if(L.type==='normal'){rx=L.mPx+c*(L.pWpx+L.gPx);ry=L.mPx+r*(L.pHpx+L.gPx);rw=L.pWpx;rh=L.pHpx;}
+    else{rx=L.mPx+c*(L.pWpx+L.gPx)+L.paX;ry=L.mPx+r*(L.pHpx+L.gPx)+L.paY;rw=L.paW;rh=L.paH;}
+    if(cx>=rx&&cx<=rx+rw&&cy>=ry&&cy<=ry+rh) return{cellIdx:ci, cell:L.allCells[ci], rx,ry,rw,rh};
+  }
+  return null;
+}
+
+// ── DRAG + CLICK (delegated to pages-container) ──
+(function setupInteraction(){
+  const pc=document.getElementById('pages-container');
+
+  function getPageAndXY(e) {
+    const target=e.target; if(target.tagName!=='CANVAS') return null;
+    const wrap=target.closest('.page-wrap'); if(!wrap) return null;
+    const pageIdx=parseInt(wrap.dataset.page)||0;
+    const rect=target.getBoundingClientRect();
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    return{canvas:target, pageIdx, x:(cx-rect.left)/zoom, y:(cy-rect.top)/zoom};
+  }
+
+  pc.addEventListener('mousedown', e=>{
+    if(!lastLayout) return;
+    const info=getPageAndXY(e); if(!info) return;
+    mouseDownPos={x:info.x,y:info.y};
+    const hit=getCellAtPoint(info.x,info.y,info.pageIdx);
+    if(!hit||hit.cell.stripImages) return;
+    e.preventDefault();
+    info.canvas.style.cursor='grabbing';
+    dragState={cell:hit.cell,startX:info.x,startY:info.y,origOffsetX:hit.cell.offsetX||0,origOffsetY:hit.cell.offsetY||0,canvas:info.canvas,pageIdx:info.pageIdx};
+  });
+
+  let mouseDownPos=null;
+
+  pc.addEventListener('mousemove', e=>{
+    if(!dragState){
+      const info=getPageAndXY(e);
+      if(info&&lastLayout){const hit=getCellAtPoint(info.x,info.y,info.pageIdx);info.canvas.style.cursor=hit?'grab':'default';}
+      return;
+    }
+    e.preventDefault();
+    const info=getPageAndXY(e); if(!info) return;
+    const dx=info.x-dragState.startX, dy=info.y-dragState.startY;
+    const cell=dragState.cell, imgObj=cell.img;
+    const L=lastLayout;
+    const fw=L.type==='normal'?L.pWpx:L.paW, fh=L.type==='normal'?L.pHpx:L.paH;
+    const iz=(cell.zoom||100)/100;
+    const sc=Math.max(fw/imgObj.width,fh/imgObj.height)*iz;
+    const maxX=(imgObj.width*sc-fw)/2, maxY=(imgObj.height*sc-fh)/2;
+    cell.offsetX=Math.max(-maxX,Math.min(maxX,dragState.origOffsetX+dx));
+    cell.offsetY=Math.max(-maxY,Math.min(maxY,dragState.origOffsetY+dy));
+    const src=images.find(img=>img.img===cell.img);
+    if(src){src.offsetX=cell.offsetX;src.offsetY=cell.offsetY;}
+    // Only redraw the page being dragged
+    drawPageToCanvas(pages[dragState.pageIdx], dragState.pageIdx);
+  });
+
+  pc.addEventListener('mouseup', e=>{
+    const info=getPageAndXY(e);
+    const wasDrag=dragState&&mouseDownPos&&(Math.abs((info?info.x:0)-mouseDownPos.x)>4||Math.abs((info?info.y:0)-mouseDownPos.y)>4);
+    if(dragState&&dragState.canvas) dragState.canvas.style.cursor='grab';
+    dragState=null;
+    if(!wasDrag&&info&&lastLayout){
+      const hit=getCellAtPoint(info.x,info.y,info.pageIdx);
+      if(hit&&!hit.cell.stripImages) openPhotoToolbar(hit.cellIdx,hit.cell,e);
+    }
+  });
+
+  pc.addEventListener('mouseleave',()=>{dragState=null;});
+
+  pc.addEventListener('touchstart',e=>{
+    if(!lastLayout) return;
+    const info=getPageAndXY(e); if(!info) return;
+    mouseDownPos={x:info.x,y:info.y};
+    const hit=getCellAtPoint(info.x,info.y,info.pageIdx);
+    if(!hit||hit.cell.stripImages) return;
+    e.preventDefault();
+    dragState={cell:hit.cell,startX:info.x,startY:info.y,origOffsetX:hit.cell.offsetX||0,origOffsetY:hit.cell.offsetY||0,canvas:info.canvas,pageIdx:info.pageIdx};
+  },{passive:false});
+
+  pc.addEventListener('touchmove',e=>{
+    if(!dragState) return; e.preventDefault();
+    const info=getPageAndXY(e); if(!info) return;
+    const dx=info.x-dragState.startX, dy=info.y-dragState.startY;
+    const cell=dragState.cell, imgObj=cell.img;
+    const L=lastLayout;
+    const fw=L.type==='normal'?L.pWpx:L.paW, fh=L.type==='normal'?L.pHpx:L.paH;
+    const iz=(cell.zoom||100)/100;
+    const sc=Math.max(fw/imgObj.width,fh/imgObj.height)*iz;
+    const maxX=(imgObj.width*sc-fw)/2, maxY=(imgObj.height*sc-fh)/2;
+    cell.offsetX=Math.max(-maxX,Math.min(maxX,dragState.origOffsetX+dx));
+    cell.offsetY=Math.max(-maxY,Math.min(maxY,dragState.origOffsetY+dy));
+    drawPageToCanvas(pages[dragState.pageIdx],dragState.pageIdx);
+  },{passive:false});
+
+  pc.addEventListener('touchend',()=>{dragState=null;});
+})();
+
+// ── PHOTO TOOLBAR ──
+function openPhotoToolbar(cellIdx, cell, e) {
+  selectedCellIdx = cellIdx;
+  const tb = document.getElementById('photoToolbar');
+  document.getElementById('ptbTitle').textContent = '✏️ ' + (cell.name||'Foto');
+  document.getElementById('ptbZoom').value       = cell.zoom||100;
+  document.getElementById('ptbZoomVal').textContent = (cell.zoom||100)+'%';
+  document.getElementById('ptbBrightness').value = cell.brightness||0;
+  document.getElementById('ptbBrightnessVal').textContent = cell.brightness||0;
+  document.getElementById('ptbContrast').value   = cell.contrast||0;
+  document.getElementById('ptbContrastVal').textContent = cell.contrast||0;
+  // Position near click
+  const margin = 12;
+  let lx = e.clientX + margin, ly = e.clientY + margin;
+  if (lx + 220 > window.innerWidth)  lx = e.clientX - 220 - margin;
+  if (ly + 220 > window.innerHeight) ly = e.clientY - 220 - margin;
+  tb.style.left = lx+'px'; tb.style.top = ly+'px';
+  tb.classList.add('visible');
+}
+
+function closePhotoToolbar() {
+  document.getElementById('photoToolbar').classList.remove('visible');
+  selectedCellIdx = null;
+}
+
+function getSelectedCell() {
+  if (selectedCellIdx === null || !lastLayout) return null;
+  return lastLayout.allCells[selectedCellIdx] || null;
+}
+
+function rotateSelected(deg) {
+  const cell = getSelectedCell(); if (!cell) return;
+  cell.rotation = ((cell.rotation||0) + deg + 360) % 360;
+  // Sync to source
+  const src = images.find(img=>img.img===cell.img);
+  if (src) src.rotation = cell.rotation;
+  redrawLayout();
+}
+
+function updatePhotoAdjust() {
+  const cell = getSelectedCell(); if (!cell) return;
+  const zv  = parseInt(document.getElementById('ptbZoom').value);
+  const bv  = parseInt(document.getElementById('ptbBrightness').value);
+  const cv  = parseInt(document.getElementById('ptbContrast').value);
+  document.getElementById('ptbZoomVal').textContent       = zv+'%';
+  document.getElementById('ptbBrightnessVal').textContent = bv;
+  document.getElementById('ptbContrastVal').textContent   = cv;
+  cell.zoom=zv; cell.brightness=bv; cell.contrast=cv;
+  // Recalculate max offset with new zoom
+  if (lastLayout) {
+    const L=lastLayout,imgObj=cell.img;
+    const fw=L.type==='normal'?L.pWpx:L.paW, fh=L.type==='normal'?L.pHpx:L.paH;
+    const sc=Math.max(fw/imgObj.width,fh/imgObj.height)*(zv/100);
+    const maxX=(imgObj.width*sc-fw)/2,maxY=(imgObj.height*sc-fh)/2;
+    cell.offsetX=Math.max(-maxX,Math.min(maxX,cell.offsetX||0));
+    cell.offsetY=Math.max(-maxY,Math.min(maxY,cell.offsetY||0));
+  }
+  const src=images.find(img=>img.img===cell.img);
+  if(src){src.zoom=zv;src.brightness=bv;src.contrast=cv;src.offsetX=cell.offsetX;src.offsetY=cell.offsetY;}
+  redrawLayout();
+}
+
+function resetPhotoAdjust() {
+  const cell=getSelectedCell(); if(!cell) return;
+  cell.zoom=100; cell.brightness=0; cell.contrast=0; cell.rotation=0; cell.offsetX=0; cell.offsetY=0;
+  const src=images.find(img=>img.img===cell.img);
+  if(src){src.zoom=100;src.brightness=0;src.contrast=0;src.rotation=0;src.offsetX=0;src.offsetY=0;}
+  document.getElementById('ptbZoom').value=100;       document.getElementById('ptbZoomVal').textContent='100%';
+  document.getElementById('ptbBrightness').value=0;   document.getElementById('ptbBrightnessVal').textContent='0';
+  document.getElementById('ptbContrast').value=0;     document.getElementById('ptbContrastVal').textContent='0';
+  redrawLayout();
+}
+
+// Close toolbar on outside click
+document.addEventListener('mousedown', e=>{
+  const tb=document.getElementById('photoToolbar');
+  if(tb.classList.contains('visible') && !tb.contains(e.target) && e.target.tagName!=='CANVAS') closePhotoToolbar();
+});
+
+// ── PRINT (one page per sheet) ──
+function printSheet() {
+  if(!pages.length){alert('Primero generá el diseño.');return;}
+  const imgs=pages.map(c=>c.toDataURL('image/png'));
+  const win=window.open('','_blank');
+  const imgTags=imgs.map(src=>`<img src="${src}">`).join('');
+  win.document.write(`<html><head><title>Imprimir</title>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff}
+    img{width:100vw;height:100vh;object-fit:contain;display:block;page-break-after:always;}
+    img:last-child{page-break-after:auto;}
+    @media print{@page{margin:0}}</style>
+    </head><body>${imgTags}<script>window.onload=()=>window.print();<\/script></body></html>`);
+  win.document.close();
+}
+
+// ── EXPORT JPG 300 DPI (one file per page) ──
+function exportJPG() {
+  if(!pages.length){alert('Primero generá el diseño.');return;}
+  const SCALE=118.11/100;
+  const dpi300=[0xFF,0xE0,0x00,0x10,0x4A,0x46,0x49,0x46,0x00,0x01,0x01,0x01,0x01,0x2C,0x01,0x2C,0x00,0x00];
+  const ts=Date.now();
+
+  pages.forEach((srcCanvas, pi)=>{
+    const outW=Math.round(srcCanvas.width*SCALE), outH=Math.round(srcCanvas.height*SCALE);
+    const hi=document.createElement('canvas'); hi.width=outW; hi.height=outH;
+    const ctx=hi.getContext('2d');
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,outW,outH);
+    ctx.drawImage(srcCanvas,0,0,outW,outH);
+    const dataURL=hi.toDataURL('image/jpeg',0.97);
+    const bs=atob(dataURL.split(',')[1]);
+    const buf=new Uint8Array(bs.length);
+    for(let i=0;i<bs.length;i++) buf[i]=bs.charCodeAt(i);
+    if(buf[2]===0xFF&&buf[3]===0xE0) dpi300.forEach((b,i)=>{buf[2+i]=b;});
+    const suffix=pages.length>1?`_hoja${pi+1}`:'';
+    setTimeout(()=>{
+      const url=URL.createObjectURL(new Blob([buf],{type:'image/jpeg'}));
+      const a=document.createElement('a'); a.href=url; a.download=`PhotoPrint_300dpi${suffix}_${ts}.jpg`; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),5000);
+    }, pi*400); // stagger downloads
+  });
+}
+
+// ── SAVE / LOAD PROJECT ──
+function saveProject() {
+  if(!images.length){alert('No hay imágenes cargadas.');return;}
+  const proj = {
+    version: 2,
+    mode: currentMode,
+    copies, polaCopies,
+    currentPolaType, polaWcm, polaHcm,
+    settings: {
+      sheetPreset: document.getElementById('sheetPreset').value,
+      sheetW: document.getElementById('sheetW').value,
+      sheetH: document.getElementById('sheetH').value,
+      orientation: document.getElementById('orientation').value,
+      photoW: document.getElementById('photoW').value,
+      photoH: document.getElementById('photoH').value,
+      marginSlider: document.getElementById('marginSlider').value,
+      gapSlider: document.getElementById('gapSlider').value,
+      autoFill: document.getElementById('autoFillToggle').classList.contains('on'),
+      fitMode: document.getElementById('fitModeToggle').classList.contains('on'),
+      cutLines: document.getElementById('cutLinesToggle').classList.contains('on'),
+      polaSheetPreset: document.getElementById('polaSheetPreset').value,
+      polaOrientation: document.getElementById('polaOrientation').value,
+      polaBorderSide: document.getElementById('polaBorderSide').value,
+      polaBorderBottom: document.getElementById('polaBorderBottom').value,
+      polaMargin: document.getElementById('polaMarginSlider').value,
+      polaGap: document.getElementById('polaGapSlider').value,
+      polaAutoFill: document.getElementById('polaAutoFill').classList.contains('on'),
+      polaFitMode: document.getElementById('polaFitModeToggle').classList.contains('on'),
+      polaCutLines: document.getElementById('polaCutLines').classList.contains('on'),
+      captionFont: document.getElementById('captionFont').value,
+      captionSize: document.getElementById('captionSize').value,
+    },
+    images: images.map(img=>({
+      id:img.id, name:img.name, src:img.src, caption:img.caption,
+      offsetX:img.offsetX||0, offsetY:img.offsetY||0,
+      rotation:img.rotation||0, zoom:img.zoom||100,
+      brightness:img.brightness||0, contrast:img.contrast||0
+    }))
+  };
+  const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`PhotoPrint_proyecto_${Date.now()}.photoprint`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
+function loadProject(input) {
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const proj=JSON.parse(ev.target.result);
+      // Clear and restore images
+      images.length=0; idCounter=0;
+      const promises=proj.images.map(imgData=>new Promise(resolve=>{
+        const img=new Image();
+        img.onload=()=>{
+          images.push({id:imgData.id, src:imgData.src, img, name:imgData.name,
+            caption:imgData.caption||'', offsetX:imgData.offsetX||0, offsetY:imgData.offsetY||0,
+            rotation:imgData.rotation||0, zoom:imgData.zoom||100,
+            brightness:imgData.brightness||0, contrast:imgData.contrast||0});
+          idCounter=Math.max(idCounter,imgData.id);
+          resolve();
+        };
+        img.src=imgData.src;
+      }));
+      Promise.all(promises).then(()=>{
+        renderThumbs(); renderCaptionList();
+        // Restore settings
+        const s=proj.settings;
+        if(s){
+          document.getElementById('sheetPreset').value=s.sheetPreset||'a4';
+          document.getElementById('sheetW').value=s.sheetW||21;
+          document.getElementById('sheetH').value=s.sheetH||29.7;
+          document.getElementById('orientation').value=s.orientation||'portrait';
+          document.getElementById('photoW').value=s.photoW||4;
+          document.getElementById('photoH').value=s.photoH||6;
+          document.getElementById('marginSlider').value=s.marginSlider||3; document.getElementById('marginLabel').textContent=s.marginSlider||3;
+          document.getElementById('gapSlider').value=s.gapSlider||2; document.getElementById('gapLabel').textContent=s.gapSlider||2;
+          setToggle('autoFillToggle', s.autoFill!==false);
+          setToggle('fitModeToggle', !!s.fitMode);
+          setToggle('cutLinesToggle', s.cutLines!==false);
+          document.getElementById('polaSheetPreset').value=s.polaSheetPreset||'a4';
+          document.getElementById('polaOrientation').value=s.polaOrientation||'portrait';
+          document.getElementById('polaBorderSide').value=s.polaBorderSide||5; document.getElementById('polaBorderSideLabel').textContent=s.polaBorderSide||5;
+          document.getElementById('polaBorderBottom').value=s.polaBorderBottom||14; document.getElementById('polaBorderBottomLabel').textContent=s.polaBorderBottom||14;
+          document.getElementById('polaMarginSlider').value=s.polaMargin||3; document.getElementById('polaMarginLabel').textContent=s.polaMargin||3;
+          document.getElementById('polaGapSlider').value=s.polaGap||0; document.getElementById('polaGapLabel').textContent=s.polaGap||0;
+          setToggle('polaAutoFill', s.polaAutoFill!==false);
+          setToggle('polaFitModeToggle', !!s.polaFitMode);
+          setToggle('polaCutLines', s.polaCutLines!==false);
+          document.getElementById('captionFont').value=s.captionFont||'cursive';
+          document.getElementById('captionSize').value=s.captionSize||11; document.getElementById('captionSizeLabel').textContent=s.captionSize||11;
+        }
+        copies=proj.copies||1; document.getElementById('copiesVal').textContent=copies;
+        polaCopies=proj.polaCopies||1; document.getElementById('polaCopiesVal').textContent=polaCopies;
+        currentPolaType=proj.currentPolaType||'polaroid';
+        polaWcm=proj.polaWcm||9; polaHcm=proj.polaHcm||10;
+        // Switch to saved mode
+        const modeBtn=document.querySelector(`.mode-tab:${proj.mode==='polaroid'?'last-child':'first-child'}`);
+        if(modeBtn) switchMode(proj.mode||'normal', modeBtn);
+        alert('Proyecto cargado ✓ — presioná Generar diseño para ver el resultado.');
+      });
+    }catch(e){ alert('Error al cargar el proyecto. ¿Es un archivo .photoprint válido?'); }
+  };
+  reader.readAsText(file);
+  input.value='';
+}
+
+function setToggle(id, on) {
+  const el=document.getElementById(id);
+  if(on) el.classList.add('on'); else el.classList.remove('on');
+}
+
+// Init
+document.querySelector('.preset-btn').click();
+</script>
+</body>
+</html>
