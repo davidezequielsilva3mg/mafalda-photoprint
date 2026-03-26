@@ -34,7 +34,6 @@
 
   .upload-zone { border:2px dashed var(--border); border-radius:var(--radius); padding:16px 10px; text-align:center; cursor:pointer; transition:all 0.2s; position:relative; }
   .upload-zone:hover,.upload-zone.drag-over { border-color:var(--accent); background:rgba(232,255,71,0.04); }
-  .upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
   .upload-icon { font-size:20px; margin-bottom:4px; }
   .upload-zone p { font-size:11px; color:var(--muted); }
   .upload-zone strong { color:var(--text); font-size:12px; }
@@ -52,7 +51,10 @@
   .field-row { display:flex; gap:7px; margin-bottom:8px; align-items:center; }
   .field-row label { font-size:11px; color:var(--muted); min-width:54px; }
   select,input[type=number],input[type=text] { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:5px 7px; font-size:12px; font-family:'Courier New',monospace; width:100%; outline:none; transition:border-color 0.15s; }
-  select:focus,input:focus { border-color:var(--accent); }
+  select:focus,input[type=number]:focus,input[type=text]:focus { border-color:var(--accent); }
+  input[type=range] { padding:0; border:none; background:transparent; height:auto; }
+  input[type=file] { display:none; }
+  .upload-zone input[type=file] { display:block; position:absolute; inset:0; opacity:0; cursor:pointer; width:100% !important; height:100% !important; padding:0; border:none; z-index:10; }
 
   .preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:8px; }
   .preset-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:6px 4px; font-family:'Courier New',monospace; font-size:11px; cursor:pointer; transition:all 0.15s; text-align:center; line-height:1.4; }
@@ -294,7 +296,7 @@
       </div>
       <div class="panel-section">
         <div class="section-title">05 — Copias &amp; Espaciado</div>
-        <div class="toggle-row"><label>Llenar hoja al máximo</label><div class="toggle on" id="polaAutoFill" onclick="toggleEl('polaAutoFill')"></div></div>
+        <div class="toggle-row"><label>Llenar hoja al máximo</label><div class="toggle" id="polaAutoFill" onclick="toggleEl('polaAutoFill')"></div></div>
         <div class="copies-row"><label>Copias por foto</label>
           <div class="copies-ctrl">
             <button class="copies-btn" onclick="changePolaCopies(-1)">−</button>
@@ -593,9 +595,17 @@ function generateNormal() {
   const rows=Math.floor((sh.h-mCm*2+gCm)/(pH+gCm));
   if(cols<1||rows<1){alert('La foto no cabe. Ajustá las medidas.');return;}
   const slotsPerPage=cols*rows;
-  const allCells=buildCells(fill, fill ? slotsPerPage : images.length*copies, copies);
-  // Split into pages
-  const totalPages=fill ? 1 : Math.ceil(allCells.length/slotsPerPage);
+  let allCells=[];
+  if(fill){
+    // Fill: show all images, cycle to fill each page completely
+    const pagesNeeded=Math.ceil(images.length/slotsPerPage)||1;
+    const totalCells=pagesNeeded*slotsPerPage;
+    for(let i=0;i<totalCells;i++) allCells.push(images[i%images.length]);
+  } else {
+    // Normal: each image x copies, as many pages as needed
+    images.forEach(img=>{ for(let c=0;c<copies;c++) allCells.push(img); });
+  }
+  const totalPages=Math.ceil(allCells.length/slotsPerPage)||1;
   const cW=S(sh.w),cH=S(sh.h);
   const mPx=S(mCm),gPx=S(gCm),pWpx=S(pW),pHpx=S(pH);
 
@@ -632,9 +642,17 @@ function generatePolaroid() {
     const n=fill?slotsPerPage:polaCopies;
     for(let i=0;i<n;i++) allCells.push(group);
   }else{
-    allCells=buildCells(fill, fill?slotsPerPage:images.length*polaCopies, polaCopies);
+    if(fill){
+      // Fill: show all images, cycle to fill each page completely
+      const pagesNeeded=Math.ceil(images.length/slotsPerPage)||1;
+      const totalCells=pagesNeeded*slotsPerPage;
+      for(let i=0;i<totalCells;i++) allCells.push(images[i%images.length]);
+    } else {
+      // Normal: each image x copies, as many pages as needed
+      images.forEach(img=>{ for(let c=0;c<polaCopies;c++) allCells.push(img); });
+    }
   }
-  const totalPages=fill?1:Math.ceil(allCells.length/slotsPerPage);
+  const totalPages=Math.ceil(allCells.length/slotsPerPage)||1;
   const cW=S(sh.w),cH=S(sh.h);
   const mPx=S(mCm),gPx=S(gCm),pWpx=S(pw),pHpx=S(ph);
   const bSPx=S(bSide),bBPx=S(bBottom);
@@ -648,7 +666,7 @@ function generatePolaroid() {
 }
 
 // ── MULTI-PAGE ENGINE ──
-let pages = []; // array of canvas elements, one per page
+// pages array declared above in state
 
 function drawPageToCanvas(canvas, pageIdx) {
   if(!lastLayout) return;
